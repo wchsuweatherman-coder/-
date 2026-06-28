@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="乙配練習">
+<meta name="theme-color" content="#1a2a4a">
+<title>乙級室配 對話練習</title>
+
+<!-- PWA Manifest (inline) -->
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E4%B9%99%E7%B4%9A%E5%AE%A4%E9%85%8D%E5%B0%8D%E8%A9%B1%E7%B7%B4%E7%BF%92%22%2C%22short_name%22%3A%22%E4%B9%99%E9%85%8D%E7%B7%B4%E7%BF%92%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a2a4a%22%2C%22theme_color%22%3A%22%231a2a4a%22%2C%22description%22%3A%22%E4%B9%99%E7%B4%9A%E5%AE%A4%E5%85%A7%E9%85%8D%E7%B7%9A%E8%A1%93%E7%A7%91%E7%B7%B4%E7%BF%92%22%7D">
+
+<!-- Apple touch icon (SVG data uri) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231a2a4a'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1923;
+  --chat-bg: #1a2535;
+  --bot-bubble: #1e3a5f;
+  --bot-text: #e8f4fd;
+  --user-bubble: #27ae60;
+  --user-text: #ffffff;
+  --opt-bg: #1e2d3d;
+  --opt-border: #2e4a65;
+  --opt-hover: #264d7a;
+  --opt-correct: #1a4731;
+  --opt-wrong: #4a1a1a;
+  --border-correct: #27ae60;
+  --border-wrong: #e74c3c;
+  --accent: #3498db;
+  --muted: #7f8c9a;
+  --header-h: 64px;
+  --footer-h: 72px;
+  --radius: 18px;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--bot-text);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+/* ── Header ── */
+.app-header {
+  height: var(--header-h);
+  background: var(--chat-bg);
+  border-bottom: 1px solid #2a3f55;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.bot-avatar {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, #2980b9, #1abc9c);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.bot-info { flex: 1; }
+.bot-name { font-size: 0.95em; font-weight: 600; color: #e8f4fd; }
+.bot-status { font-size: 0.75em; color: #27ae60; }
+.score-pills { display: flex; gap: 6px; }
+.pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72em;
+  font-weight: 700;
+}
+.pill-correct { background: rgba(39,174,96,.2); color: #2ecc71; border: 1px solid rgba(39,174,96,.4); }
+.pill-wrong { background: rgba(231,76,60,.2); color: #e74c3c; border: 1px solid rgba(231,76,60,.4); }
+
+/* ── Progress bar ── */
+.progress-strip {
+  height: 3px;
+  background: #2a3f55;
+  flex-shrink: 0;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #27ae60, #3498db);
+  transition: width 0.5s ease;
+}
+
+/* ── Chat area ── */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.chat-area::-webkit-scrollbar { width: 4px; }
+.chat-area::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 2px; }
+
+/* ── Bubbles ── */
+.msg { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
+.msg.bot { flex-direction: row; }
+.msg.user { flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2980b9, #1abc9c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.bubble {
+  max-width: calc(100% - 50px);
+  padding: 11px 15px;
+  border-radius: 18px;
+  line-height: 1.6;
+  font-size: 0.93em;
+  animation: popIn 0.25s ease;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.msg.bot .bubble {
+  background: var(--bot-bubble);
+  color: var(--bot-text);
+  border-bottom-left-radius: 4px;
+}
+.msg.user .bubble {
+  background: var(--user-bubble);
+  color: var(--user-text);
+  border-bottom-right-radius: 4px;
+}
+
+/* Category tag */
+.cat-tag {
+  display: inline-block;
+  font-size: 0.72em;
+  background: rgba(52,152,219,.2);
+  color: #5dade2;
+  border: 1px solid rgba(52,152,219,.3);
+  border-radius: 10px;
+  padding: 2px 9px;
+  margin-bottom: 7px;
+  letter-spacing: 0.5px;
+}
+
+/* Question text */
+.q-text { font-size: 0.97em; font-weight: 500; line-height: 1.65; }
+.hint-text {
+  margin-top: 8px;
+  font-size: 0.82em;
+  color: #f39c12;
+  opacity: 0.85;
+}
+
+/* Typing indicator */
+.typing { display: flex; align-items: center; gap: 4px; padding: 8px 6px; }
+.typing span {
+  width: 7px; height: 7px;
+  background: #5dade2;
+  border-radius: 50%;
+  animation: bounce 1.2s infinite;
+}
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce {
+  0%,60%,100% { transform: translateY(0); }
+  30% { transform: translateY(-7px); }
+}
+
+/* Feedback bubble */
+.bubble.feedback-correct { background: #1a4731; border: 1px solid #27ae60; }
+.bubble.feedback-wrong   { background: #3d1515; border: 1px solid #e74c3c; }
+.feedback-icon { font-size: 1.1em; margin-right: 4px; }
+.feedback-explain { margin-top: 7px; font-size: 0.88em; opacity: 0.85; line-height: 1.55; }
+
+/* ── Options footer ── */
+.options-area {
+  flex-shrink: 0;
+  background: var(--chat-bg);
+  border-top: 1px solid #2a3f55;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.opt-btn {
+  width: 100%;
+  padding: 12px 15px;
+  background: var(--opt-bg);
+  border: 1px solid var(--opt-border);
+  border-radius: 12px;
+  color: var(--bot-text);
+  text-align: left;
+  font-size: 0.9em;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.opt-btn:active:not(:disabled) { transform: scale(0.98); }
+.opt-btn:hover:not(:disabled) { background: var(--opt-hover); border-color: var(--accent); }
+.opt-label { font-weight: 700; color: var(--accent); flex-shrink: 0; }
+
+.opt-btn.correct { background: var(--opt-correct); border-color: var(--border-correct); color: #2ecc71; }
+.opt-btn.correct .opt-label { color: #2ecc71; }
+.opt-btn.wrong { background: var(--opt-wrong); border-color: var(--border-wrong); color: #e74c3c; }
+.opt-btn.wrong .opt-label { color: #e74c3c; }
+.opt-btn:disabled { cursor: default; opacity: 0.85; }
+
+/* Next button */
+.next-btn {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #2980b9, #3498db);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+  display: none;
+}
+.next-btn.show { display: block; }
+.next-btn:active { transform: scale(0.98); }
+
+/* ── Welcome screen ── */
+#welcomeScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 24px;
+  text-align: center;
+}
+.welcome-icon { font-size: 56px; margin-bottom: 16px; }
+.welcome-title { font-size: 1.5em; font-weight: 700; margin-bottom: 8px; color: #e8f4fd; }
+.welcome-sub { color: var(--muted); font-size: 0.9em; line-height: 1.6; margin-bottom: 28px; }
+.cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 380px;
+  margin-bottom: 18px;
+}
+.cat-card {
+  background: var(--chat-bg);
+  border: 1px solid var(--opt-border);
+  border-radius: 14px;
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.cat-card:active { transform: scale(0.96); }
+.cat-card.active { border-color: var(--accent); background: rgba(52,152,219,.12); }
+.cat-card .cc-icon { font-size: 1.4em; margin-bottom: 6px; display: block; }
+.cat-card .cc-name { font-size: 0.8em; font-weight: 600; color: #e8f4fd; line-height: 1.35; }
+.cat-card .cc-count { font-size: 0.7em; color: var(--muted); margin-top: 3px; }
+.start-btn {
+  width: 100%;
+  max-width: 380px;
+  padding: 15px;
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 1.05em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 1px;
+}
+.start-btn:active { transform: scale(0.97); }
+
+/* ── Result overlay ── */
+#resultOverlay {
+  position: fixed; inset: 0;
+  background: rgba(10,16,26,.92);
+  z-index: 50;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+#resultOverlay.show { display: flex; }
+.result-icon { font-size: 52px; margin-bottom: 12px; }
+.result-pct { font-size: 3.5em; font-weight: 800; color: #3498db; margin: 8px 0; }
+.result-msg { font-size: 1.2em; font-weight: 600; color: #e8f4fd; margin-bottom: 6px; }
+.result-detail { color: var(--muted); font-size: 0.88em; margin-bottom: 24px; }
+.cat-bars { width: 100%; max-width: 340px; margin-bottom: 24px; text-align: left; }
+.cat-bar-row { margin-bottom: 10px; }
+.cat-bar-label { font-size: 0.78em; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.cat-bar-label span:last-child { font-weight: 600; color: #e8f4fd; }
+.bar-track { height: 6px; background: #2a3f55; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.result-btns { display: flex; gap: 10px; width: 100%; max-width: 340px; }
+.result-btn {
+  flex: 1;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.92em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.result-btn:active { transform: scale(0.97); }
+.btn-back { background: #2a3f55; color: #e8f4fd; }
+.btn-retry { background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; }
+
+/* Date separator */
+.date-sep {
+  text-align: center;
+  font-size: 0.72em;
+  color: var(--muted);
+  padding: 4px 0 8px;
+}
+
+/* Install hint */
+.install-hint {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(135deg, #1a4731, #1e5c3a);
+  color: #2ecc71;
+  padding: 12px 16px;
+  font-size: 0.82em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 200;
+  border-top: 1px solid #27ae60;
+  animation: slideUp 0.4s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.install-hint .ih-close {
+  background: none; border: none; color: #2ecc71;
+  font-size: 1.1em; cursor: pointer; padding: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- Welcome screen -->
+<div id="welcomeScreen">
+  <div class="welcome-icon">⚡</div>
+  <div class="welcome-title">乙級室內配線 術科練習</div>
+  <div class="welcome-sub">對話式練習，選擇章節開始測驗<br>共 40 題，支援加到主畫面離線使用</div>
+  <div class="cat-grid" id="catGrid">
+    <div class="cat-card active" data-cat="all" onclick="toggleCat(this,'all')">
+      <span class="cc-icon">📋</span>
+      <div class="cc-name">全部題目</div>
+      <div class="cc-count">40 題</div>
+    </div>
+    <div class="cat-card" data-cat="AS" onclick="toggleCat(this,'AS')">
+      <span class="cc-icon">🔄</span>
+      <div class="cc-name">AS 電流切換開關</div>
+      <div class="cc-count">5 題</div>
+    </div>
+    <div class="cat-card" data-cat="VS" onclick="toggleCat(this,'VS')">
+      <span class="cc-icon">⚡</span>
+      <div class="cc-name">VS 電壓切換開關</div>
+      <div class="cc-count">5 題</div>
+    </div>
+    <div class="cat-card" data-cat="CT" onclick="toggleCat(this,'CT')">
+      <span class="cc-icon">🔃</span>
+      <div class="cc-name">CT 比流器</div>
+      <div class="cc-count">5 題</div>
+    </div>
+    <div class="cat-card" data-cat="wiring" onclick="toggleCat(this,'wiring')">
+      <span class="cc-icon">🧵</span>
+      <div class="cc-name">配線順序與接地</div>
+      <div class="cc-count">8 題</div>
+    </div>
+    <div class="cat-card" data-cat="s1" onclick="toggleCat(this,'s1')">
+      <span class="cc-icon">🏠</span>
+      <div class="cc-name">第一站 室內配線</div>
+      <div class="cc-count">10 題</div>
+    </div>
+    <div class="cat-card" data-cat="s3" onclick="toggleCat(this,'s3')">
+      <span class="cc-icon">🪵</span>
+      <div class="cc-name">第三站 桿上作業</div>
+      <div class="cc-count">7 題</div>
+    </div>
+  </div>
+  <button class="start-btn" onclick="startQuiz()">開始練習 →</button>
+</div>
+
+<!-- Main chat app -->
+<div class="app-header">
+  <div class="bot-avatar">⚡</div>
+  <div class="bot-info">
+    <div class="bot-name">乙配練習助理</div>
+    <div class="bot-status">● 線上</div>
+  </div>
+  <div class="score-pills">
+    <div class="pill pill-correct">✓ <span id="hCorrect">0</span></div>
+    <div class="pill pill-wrong">✗ <span id="hWrong">0</span></div>
+  </div>
+</div>
+<div class="progress-strip"><div class="progress-fill" id="pFill" style="width:0%"></div></div>
+
+<div class="chat-area" id="chatArea">
+  <div class="date-sep">今天</div>
+</div>
+
+<div class="options-area" id="optionsArea"></div>
+
+<!-- Result overlay -->
+<div id="resultOverlay">
+  <div class="result-icon" id="rIcon">🎉</div>
+  <div class="result-msg" id="rMsg">練習完成！</div>
+  <div class="result-pct" id="rPct">0%</div>
+  <div class="result-detail" id="rDetail"></div>
+  <div class="cat-bars" id="catBars"></div>
+  <div class="result-btns">
+    <button class="result-btn btn-back" onclick="backToMenu()">← 選章節</button>
+    <button class="result-btn btn-retry" onclick="retryQuiz()">🔄 再練一次</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// 題庫
+// ════════════════════════════════════════════
+const QUESTIONS = [
+  { cat:'AS', catLabel:'AS 電流切換開關',
+    q:'AS（電流切換開關）轉至 OFF 檔位時，哪個端子被「孤立」？',
+    opts:['A1','A2','R','T'], ans:1,
+    explain:'轉OFF → 孤A2，即A2也。A2為主點，剩餘點即A1（同時為接地點）。' },
+  { cat:'AS', catLabel:'AS 電流切換開關',
+    q:'AS 3φ3W 中，A2為主點。將旋鈕轉至 R 檔時，通路的端子是？',
+    opts:['A1','A2','R','T'], ans:2,
+    explain:'A2為主點，轉R檔R通，即R也；轉T檔T通，即T也。' },
+  { cat:'AS', catLabel:'AS 電流切換開關',
+    q:'AS 電流切換開關中，「餘1點」（去掉A2、R、T後剩下的端子）是什麼？',
+    opts:['A1（接地點）','A2（主點）','S相端子','OFF點'], ans:0,
+    explain:'餘1點即為A1，亦為接地點。A1必須接地。' },
+  { cat:'AS', catLabel:'AS 電流切換開關',
+    q:'AS 電流切換開關的旋鈕，去掉OFF後剩下幾個有效位置？',
+    opts:['1個（R）','2個（R、T）','3個（R、S、T）','4個'], ans:1,
+    explain:'AS 3φ3W：OFF、R、T 三個位置（只量R相和T相，S相電流由計算可得）。' },
+  { cat:'AS', catLabel:'AS 電流切換開關',
+    q:'「AS 3φ3W」代表適用於哪種電力系統？',
+    opts:['單相二線 110V','單相三線 110/220V','三相三線 220V','三相四線 220/380V'], ans:2,
+    explain:'AS 3φ3W = 三相三線系統用電流切換開關，搭配兩組CT（R相、T相）使用。' },
+
+  { cat:'VS', catLabel:'VS 電壓切換開關',
+    q:'VS 旋至「RT」檔，「孤立」的是哪一相？',
+    opts:['R','S','T','V1'], ans:1,
+    explain:'轉RT少S，找S，孤S，即S也。RT檔測R-T電壓，S相端子被孤立。' },
+  { cat:'VS', catLabel:'VS 電壓切換開關',
+    q:'VS 旋至「RS」檔，被孤立的端子是？',
+    opts:['R','S','T','V2'], ans:2,
+    explain:'轉RS少T，找T，孤T，即T也。RS檔測R-S電壓，T相端子被孤立。' },
+  { cat:'VS', catLabel:'VS 電壓切換開關',
+    q:'VS 旋至「ST」檔，被孤立的端子是？',
+    opts:['R','S','T','V1'], ans:0,
+    explain:'轉ST少R，找R，孤R，即R也。ST檔測S-T電壓，R相端子被孤立。' },
+  { cat:'VS', catLabel:'VS 電壓切換開關',
+    q:'VS 3φ3W 的 V1 及 V2 端子有無極性？',
+    opts:['有極性，V1正V2負','有極性，依圖面','無極性，任意編V1、V2','V1必須接R相'], ans:2,
+    explain:'餘2點即V1及V2，不分極性，任意編V1、V2。' },
+  { cat:'VS', catLabel:'VS 電壓切換開關',
+    q:'VS（電壓切換開關）旋鈕（不含OFF）共有幾個有效位置？',
+    opts:['2個（RS、RT）','3個（RT、RS、ST）','3個（R、S、T）','4個'], ans:1,
+    explain:'VS 3φ3W：OFF、RT、RS、ST 四個位置，可量三組線間電壓。' },
+
+  { cat:'CT', catLabel:'CT 比流器',
+    q:'CT比流器繞匝公式 N = (I₁ × T) / A_max 中，N 代表？',
+    opts:['CT一次側電流值','電流表最大刻度','貫穿匝數','CT基本匝數'], ans:2,
+    explain:'N = 貫穿匝數（導線穿過CT圓孔的圈數）。' },
+  { cat:'CT', catLabel:'CT 比流器',
+    q:'CT繞匝公式中，A_max 代表什麼？',
+    opts:['CT一次側電流值','CT基本匝數','電流表最大刻度（黑色指示）','啟動電流'], ans:2,
+    explain:'A_max = 電流表最大刻度（黑色指示=額定；紅色指示=超額/啟動）。' },
+  { cat:'CT', catLabel:'CT 比流器',
+    q:'電流表上，紅色指示區域代表什麼？',
+    opts:['正常運轉範圍','額定電流','超額範圍（啟動電流用）','最小量測值'], ans:2,
+    explain:'紅色指示 = 超額刻度，電動機啟動瞬間電流較大，允許在此範圍短暫指示。' },
+  { cat:'CT', catLabel:'CT 比流器',
+    q:'CT 二次側接地點（3L端子）的接地線規格為何？',
+    opts:['1.6mm² 綠色','2.0mm² 綠色','3.5mm² 綠色','5.5mm² 綠色'], ans:3,
+    explain:'CT二次側接地(3L)：5.5mm²-綠色，與PT二次側(X2)、G→E共同接地規格相同。' },
+  { cat:'CT', catLabel:'CT 比流器',
+    q:'CT的R相電流（1S, 1L）最終依序串接到哪些儀表？',
+    opts:['WH→VARH→AS→PF','WH→VARH→PF→AS','AS→PF→WH→VARH','PF→WH→VARH→AS'], ans:1,
+    explain:'R相：WH→VARH→PF→AS（R相比T相多串一個PF功率因數表）。' },
+
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'監視盤配線順序，第1步驟先接的是？',
+    opts:['PT接線（紅色）','CT接線（黑色）','接地線（綠色）','主線路（黑色）'], ans:2,
+    explain:'順序：①接地線 → ②PT接線 → ③CT接線 → ④主線路。接地線永遠最先。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'PT（比壓器）接線的規格為何？',
+    opts:['2mm²-黑色','2mm²-紅色','5.5mm²-綠色','8mm²-黑色'], ans:1,
+    explain:'PT接線：2mm²-紅色。高壓側V型接線，低壓側V型→WH→VARH→PF→VS。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'CT（比流器）接線的規格為何？',
+    opts:['2mm²-紅色','2mm²-黑色','5.5mm²-綠色','8mm²-黑色'], ans:1,
+    explain:'CT接線：2mm²-黑色。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'監視盤主線路接線規格？（R、T相需貫穿CT）',
+    opts:['2mm²-黑色','5.5mm²-黑色','8mm²-黑色','22mm²-黑色'], ans:2,
+    explain:'主線路：8mm²-黑色。R相和T相必須貫穿CT；S相直接接到負載。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'PT 二次側接地（X2端子）的接地線規格？',
+    opts:['2mm²-綠色','3.5mm²-綠色','5.5mm²-綠色','8mm²-綠色'], ans:2,
+    explain:'PT二次側接地(X2)：5.5mm²-綠色。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'系統與設備共同接地（G→E）的接地線規格？',
+    opts:['1.6mm²-綠色','2.0mm²-綠色','3.5mm²-綠色','5.5mm²-綠色'], ans:3,
+    explain:'G→E：5.5mm²-綠色，且此接地線不可入線槽，須走線槽外部。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'CT 的 T 相電流（3S, 3L）接到哪些儀表？（T相比R相少接哪個？）',
+    opts:['WH→VARH→PF→AS','WH→VARH→AS（不接PF）','VARH→WH→AS','AS→WH→VARH'], ans:1,
+    explain:'T相：WH→VARH→AS，不接PF（功率因數表只接R相）。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'負載設備接地線（5.5mm²-綠）是否可放入線槽？',
+    opts:['可以入槽','不可以，需走線槽外部','只在轉角入槽','視情況而定'], ans:1,
+    explain:'負載設備接地（5.5mm²-綠）不入線槽，走線槽外部。' },
+  { cat:'wiring', catLabel:'配線順序與接地',
+    q:'下列接地線中，哪一種規格「不是」5.5mm²？',
+    opts:['CT二次側接地(3L)','PT二次側接地(X2)','G→E共同接地','PT高壓側接線'], ans:3,
+    explain:'PT高壓側接線屬於PT接線，規格為2mm²-紅色，不是接地線。其餘CT二次、PT二次、G→E均為5.5mm²-綠色。' },
+
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一站第一題電源系統為何？',
+    opts:['1φ2W 110V','1φ3W 110/220V','3φ3W 220V','3φ4W 220/380V'], ans:1,
+    explain:'第1題：1φ3W 110/220V。色線：A相=黑、N=白、B=紅。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一題幹線（TB1→分電盤）電纜規格？',
+    opts:['3C-3.5mm² PVC','3C-5.5mm² PVC','3C-8mm² PVC','4C-8mm² PVC'], ans:2,
+    explain:'第一題幹線：3C-8mm² PVC電纜（A/N/B三導體）。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一題，冷氣專用插座（1φ 220V）使用的電纜？',
+    opts:['3C-3.5mm² PVC（白代綠）','3C-5.5mm² PVC（白代綠）','2C-2.0mm²','4C-5.5mm²'], ans:1,
+    explain:'冷氣分路：3C-5.5mm² PVC電纜，白色代替綠色（接地）導線。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一題，廚房專用插座（1φ 110V）分路導線組合？',
+    opts:['A-2.0mm+N-2.0mm+G-2mm²（三條分開）','A-2.0mm+N-2.0mm（不接地）','3C-3.5mm²（紅代綠）','4C-2.0mm²'], ans:0,
+    explain:'廚房插座：A-2.0mm PVC + N-2.0mm PVC + G-2mm² PVC（三條分開電線）。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一站第二題電源系統為何？',
+    opts:['1φ3W 110/220V','3φ3W 220V','3φ4W 220/380V','1φ2W 220V'], ans:1,
+    explain:'第2題：3φ3W 220V。色線：A=紅、B=白、C=黑。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第二題（3φ3W 220V）3C電纜的色線代用規定？',
+    opts:['白代綠','紅代綠','藍代綠','白代藍'], ans:1,
+    explain:'第二題：3C-5.5mm² PVC電纜，紅色導線代替綠色（接地）導線（紅代綠）。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一站第三題電源系統為何？',
+    opts:['1φ3W 110/220V','3φ3W 220V','3φ3W 380V','3φ4W 220/380V'], ans:3,
+    explain:'第3題：3φ4W 220/380V。色線：A=紅、B=藍、C=黑、N=白。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第三題，空調主機（3φ3W 380V）分路電纜？',
+    opts:['3C-5.5mm²（紅代綠）','4C-5.5mm²（白代藍）','4C-8mm²','3C-8mm²（白代綠）'], ans:1,
+    explain:'空調主機：4C-5.5mm² PVC電纜，白色導線代替藍色（B相）導線（白代藍）。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第一題（1φ3W），A相是什麼顏色？',
+    opts:['紅色','白色','黑色','藍色'], ans:2,
+    explain:'第1題色線：A=黑、N=白、B=紅。（對比第2題：A=紅、B=白、C=黑）' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第二題（3φ3W 220V）中，廚房插座和電燈分路如何取得110V？',
+    opts:['從A相直接取電','從三相NFB直接','從Tr（220V→110V）降壓','從電燈分路NFB'], ans:2,
+    explain:'第二題設有Tr降壓變壓器將220V降為110V，供廚房插座和電燈分路使用。' },
+  { cat:'s1', catLabel:'第一站 室內配線',
+    q:'第三站（3φ4W 220/380V）中，插座用變壓器分路使用何種電纜？',
+    opts:['3C-3.5mm²（紅代綠）','4C-5.5mm²（白代藍）','3C-5.5mm²（紅代綠）','2C-2.0mm²'], ans:0,
+    explain:'插座用變壓器分路：3C-3.5mm² PVC電纜，紅色代替綠色（接地）導線。' },
+
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'試題一（V-V接線，二次3φ3W 220V）低壓側接地方式？',
+    opts:['低壓側三相V共用點接地','低壓側Y中性點接地','低壓側Δ接地','低壓側一線捲中性點接地'], ans:0,
+    explain:'試題一：V-V接線→3φ3W 220V→低壓側三相V共用點接地。' },
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'試題二（V-V接線，二次3φ4W 110/220V）低壓側接地方式？',
+    opts:['V共用點接地','一線捲（中性線）中性點接地','三相Δ接地','Y中性點接地'], ans:1,
+    explain:'試題二：V-V→3φ4W 110/220V→一線捲（中性線）中性點接地（有中性線輸出）。' },
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'試題三（Δ-Δ接線，二次3φ3W 220V）低壓側接地方式？',
+    opts:['V共用點接地','一線捲中性點接地','三相三線Δ角接地','Y中性點接地'], ans:2,
+    explain:'試題三：Δ-Δ→3φ3W 220V→低壓側三相三線Δ接地（Δ一個頂點接地）。' },
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'試題六（Δ-Y接線，二次3φ4W 220V/380V）低壓側接地方式？',
+    opts:['V共用點接地','Δ角接地','Y中性點直接接地','一線捲中性點接地'], ans:2,
+    explain:'試題六：Δ-Y→3φ4W 220V/380V→低壓側三相Y中性點直接接地。' },
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'第三站紮線，「頂溝」（絕緣子頂部凹槽）紮線對應哪一相？',
+    opts:['A相（第一條線）','B相（中間線）','C相（第三條線）','被接地線'], ans:1,
+    explain:'頂溝紮線 = B相（中間那條線）。邊溝紮線也對應B相，視試題選用。' },
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'第三站配線圖中，①紅色線代表何種截面積導線？',
+    opts:['8mm²','14mm²','22mm²','38mm²'], ans:2,
+    explain:'圖例：①紅色=22mm²（較粗主幹）；②藍色=14mm²（引下線）。單位：公分。' },
+  { cat:'s3', catLabel:'第三站 桿上作業',
+    q:'試題一（V-V，3φ3W 220V）桿上低壓線由上而下排列？',
+    opts:['被接地、力、力（共3條）','被接地、燈力、燈力、力（4條）','被接地、燈力×3（4條）','力×3（3條，無接地線）'], ans:0,
+    explain:'試題一桿上低壓線（由上而下）：被接地、力、力（3條，純力電）。' },
+];
+
+// ════════════════════════════════════════════
+// State
+// ════════════════════════════════════════════
+let selectedCats = new Set(['all']);
+let queue = [];
+let idx = 0;
+let correct = 0, wrong = 0;
+let answered = false;
+let catStats = {};
+
+function toggleCat(el, cat) {
+  if (cat === 'all') {
+    selectedCats.clear();
+    selectedCats.add('all');
+    document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  } else {
+    selectedCats.delete('all');
+    document.querySelector('[data-cat="all"]').classList.remove('active');
+    if (el.classList.contains('active')) {
+      el.classList.remove('active');
+      selectedCats.delete(cat);
+    } else {
+      el.classList.add('active');
+      selectedCats.add(cat);
+    }
+    if (selectedCats.size === 0) {
+      selectedCats.add('all');
+      document.querySelector('[data-cat="all"]').classList.add('active');
+    }
+  }
+}
+
+function getFilteredQ() {
+  if (selectedCats.has('all')) return QUESTIONS;
+  return QUESTIONS.filter(q => selectedCats.has(q.cat));
+}
+
+function shuffle(a) {
+  const r = [...a];
+  for (let i = r.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [r[i],r[j]] = [r[j],r[i]];
+  }
+  return r;
+}
+
+function startQuiz() {
+  const fq = getFilteredQ();
+  if (!fq.length) return;
+
+  queue = shuffle(fq);
+  idx = 0; correct = 0; wrong = 0;
+  catStats = {};
+  fq.forEach(q => { if (!catStats[q.catLabel]) catStats[q.catLabel]={c:0,t:0}; });
+
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('chatArea').innerHTML = '<div class="date-sep">今天</div>';
+  updateHeader();
+  setTimeout(() => askQuestion(), 400);
+}
+
+function retryQuiz() {
+  document.getElementById('resultOverlay').classList.remove('show');
+  const fq = getFilteredQ();
+  queue = shuffle(fq);
+  idx = 0; correct = 0; wrong = 0;
+  catStats = {};
+  fq.forEach(q => { if (!catStats[q.catLabel]) catStats[q.catLabel]={c:0,t:0}; });
+  document.getElementById('chatArea').innerHTML = '<div class="date-sep">再練一次</div>';
+  updateHeader();
+  setTimeout(() => askQuestion(), 300);
+}
+
+function backToMenu() {
+  document.getElementById('resultOverlay').classList.remove('show');
+  document.getElementById('welcomeScreen').style.display = 'flex';
+}
+
+function updateHeader() {
+  document.getElementById('hCorrect').textContent = correct;
+  document.getElementById('hWrong').textContent = wrong;
+  const total = queue.length;
+  const pct = total ? Math.round((idx/total)*100) : 0;
+  document.getElementById('pFill').style.width = pct + '%';
+}
+
+function addBubble(type, html, extraClass='') {
+  const chat = document.getElementById('chatArea');
+  const msg = document.createElement('div');
+  msg.className = `msg ${type}`;
+  if (type === 'bot') {
+    msg.innerHTML = `<div class="msg-avatar">⚡</div><div class="bubble ${extraClass}">${html}</div>`;
+  } else {
+    msg.innerHTML = `<div class="bubble ${extraClass}">${html}</div>`;
+  }
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+  return msg;
+}
+
+function addTyping() {
+  const chat = document.getElementById('chatArea');
+  const msg = document.createElement('div');
+  msg.className = 'msg bot';
+  msg.id = 'typingMsg';
+  msg.innerHTML = `<div class="msg-avatar">⚡</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typingMsg');
+  if (t) t.remove();
+}
+
+function shuffleOpts(opts, ans) {
+  const indexed = opts.map((o,i)=>({o,i}));
+  const sh = shuffle(indexed);
+  const newAns = sh.findIndex(x => x.i === ans);
+  return { opts: sh.map(x=>x.o), ans: newAns };
+}
+
+const LABELS = ['A','B','C','D'];
+
+function askQuestion() {
+  if (idx >= queue.length) { showResult(); return; }
+  const q = queue[idx];
+  answered = false;
+
+  addTyping();
+  setTimeout(() => {
+    removeTyping();
+    const html = `<div class="cat-tag">${q.catLabel}</div><div class="q-text">Q${idx+1}. ${q.q}</div>${q.hint?`<div class="hint-text">💡 ${q.hint}</div>`:''}`;
+    addBubble('bot', html);
+    showOptions(q);
+  }, 600);
+}
+
+function showOptions(q) {
+  const { opts, ans: newAns } = shuffleOpts(q.opts, q.ans);
+  const area = document.getElementById('optionsArea');
+  area.innerHTML = '';
+  opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.innerHTML = `<span class="opt-label">(${LABELS[i]})</span><span>${opt}</span>`;
+    btn.onclick = () => selectOpt(i, newAns, q, btn, opts);
+    area.appendChild(btn);
+  });
+}
+
+function selectOpt(sel, correctIdx, q, btn, opts) {
+  if (answered) return;
+  answered = true;
+
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => b.disabled = true);
+
+  const isOK = sel === correctIdx;
+  btns[sel].classList.add(isOK ? 'correct' : 'wrong');
+  if (!isOK) btns[correctIdx].classList.add('correct');
+
+  // User bubble
+  addBubble('user', `(${LABELS[sel]}) ${opts[sel]}`);
+
+  // catStats
+  if (!catStats[q.catLabel]) catStats[q.catLabel] = {c:0,t:0};
+  catStats[q.catLabel].t++;
+  if (isOK) { correct++; catStats[q.catLabel].c++; }
+  else wrong++;
+
+  updateHeader();
+
+  // Bot feedback
+  addTyping();
+  setTimeout(() => {
+    removeTyping();
+    const fbClass = isOK ? 'feedback-correct' : 'feedback-wrong';
+    const icon = isOK ? '✅' : '❌';
+    const title = isOK ? '答對了！' : `答錯了，正確答案是 (${LABELS[correctIdx]}) ${opts[correctIdx]}`;
+    const html = `<span class="feedback-icon">${icon}</span><strong>${title}</strong><div class="feedback-explain">${q.explain}</div>`;
+    addBubble('bot', html, fbClass);
+    showNextBtn();
+  }, 700);
+}
+
+function showNextBtn() {
+  const area = document.getElementById('optionsArea');
+  area.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'next-btn show';
+  const remaining = queue.length - idx - 1;
+  btn.textContent = remaining > 0 ? `下一題 → （還剩 ${remaining} 題）` : '查看結果 →';
+  btn.onclick = () => { idx++; askQuestion(); };
+  area.appendChild(btn);
+  updateHeader();
+}
+
+function showResult() {
+  const total = queue.length;
+  const pct = Math.round((correct/total)*100);
+
+  document.getElementById('pFill').style.width = '100%';
+  document.getElementById('optionsArea').innerHTML = '';
+
+  const emoji = pct>=90?'🏆':pct>=70?'😊':pct>=50?'🤔':'📚';
+  const msg = pct>=90?'優秀！接近滿分！':pct>=70?'不錯！繼續加油！':pct>=50?'還需多練習':'需要加強複習';
+
+  document.getElementById('rIcon').textContent = emoji;
+  document.getElementById('rMsg').textContent = msg;
+  document.getElementById('rPct').textContent = pct + '%';
+  document.getElementById('rDetail').textContent = `共 ${total} 題，答對 ${correct} 題，答錯 ${wrong} 題`;
+
+  const bars = document.getElementById('catBars');
+  bars.innerHTML = '';
+  Object.entries(catStats).forEach(([label, s]) => {
+    if (!s.t) return;
+    const p = Math.round((s.c/s.t)*100);
+    const col = p>=80?'#27ae60':p>=60?'#f39c12':'#e74c3c';
+    bars.innerHTML += `
+      <div class="cat-bar-row">
+        <div class="cat-bar-label"><span>${label}</span><span style="color:${col}">${s.c}/${s.t} (${p}%)</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${col}"></div></div>
+      </div>`;
+  });
+
+  document.getElementById('resultOverlay').classList.add('show');
+}
+
+// ── PWA install hint ──
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const hint = document.createElement('div');
+  hint.className = 'install-hint';
+  hint.innerHTML = `
+    <span>📲 可加到手機主畫面當 App 使用</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="installApp()" style="background:rgba(255,255,255,.15);border:1px solid #2ecc71;color:#2ecc71;padding:5px 12px;border-radius:8px;cursor:pointer;font-size:0.82em">安裝</button>
+      <button class="ih-close" onclick="this.parentElement.parentElement.remove()">✕</button>
+    </div>`;
+  document.body.appendChild(hint);
+});
+
+async function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.querySelector('.install-hint')?.remove();
+}
+
+// ── Service Worker (offline cache) ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'ycpq-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', location.pathname])));
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const blob = new Blob([swCode], {type:'text/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+</script>
+</body>
+</html>
